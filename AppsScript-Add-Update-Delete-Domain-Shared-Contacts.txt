@@ -1,45 +1,48 @@
 var SPREADSHEET_ID=SpreadsheetApp.getActiveSpreadsheet().getId();
 var DOMAIN = Session.getEffectiveUser().getEmail().split("@")[1];
-var SHEET_NAME = 'SHARED_CONTACTS';
+var SHEET_NAME = SpreadsheetApp.getActiveSheet().getSheetName();
 var ERROR_RECIPIENT_MAIL= Session.getEffectiveUser().getEmail();
 var HIGHEST_BOUNDARY,LOWEST_BOUNDARY,ERROR_COUNT='';
+
 
 function onInstall(e) {
   onOpen(e);
 }
 
+
 function onOpen(e){
   SpreadsheetApp.getUi()
       .createAddonMenu()
-      .addItem('Get contacts', 'getAllContacts')
-      .addItem('Apply changes','syncContacts')
+      .addItem('Récupérer les contacts', 'getAllContacts')
+      .addItem('Appliquer les changements','syncContacts')
       .addToUi();
 }
+
 
 function syncContacts(){
   var maxRows =  SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getLastRow();
   
-  if (maxRows<=2) {
-    Logger.log("NO DATA TO PROCESS.");
+  if (maxRows<=1) {
+    Logger.log("AUCUNE DONNÉES À TRAITER.");
   }
   else{
-    var i=3;
+    var i=2;
     var range;
-    range = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(i, 1, 1, 15).getValues();
-	while (i<=maxRows && range[0][0]!=null && range[0][0]!=undefined&&range[0][0]!='') {
-		switch(range[0][13]){
+    range = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(i, 1, 1, 18).getValues();
+	while (i<=maxRows && range[0][0]!=null && range[0][0]!=undefined && range[0][0]!='') {
+		switch(range[0][16]){
 		  case 'ADD':
-            addContact(range[0][0],range[0][1],range[0][2],range[0][3],range[0][4],range[0][5],range[0][6],range[0][7],range[0][8],range[0][9],range[0][10],range[0][11],i);
+            addContact(range[0][0],range[0][1],range[0][2],range[0][3],range[0][4],range[0][5],range[0][6],range[0][7],range[0][8],range[0][9],range[0][10],range[0][11],range[0][12],range[0][13],range[0][14],i);
             break;
           case 'UPDATE':
-            updateContact(range[0][0],range[0][1],range[0][2],range[0][3],range[0][4],range[0][5],range[0][6],range[0][7],range[0][8],range[0][9],range[0][10],range[0][11],range[0][12],i);
+            updateContact(range[0][0],range[0][1],range[0][2],range[0][3],range[0][4],range[0][5],range[0][6],range[0][7],range[0][8],range[0][9],range[0][10],range[0][11],range[0][12],range[0][13],range[0][14],range[0][15],i);
             break;
           case 'DELETE':
-            deleteContact(range[0][12],i);
+            deleteContact(range[0][15],i);
             break;
         }
 		i++;
-		range = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(i, 1, 1, 15).getValues();
+		range = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(i, 1, 1, 18).getValues();
 		}
       
     }
@@ -47,18 +50,25 @@ function syncContacts(){
   
   if (ERROR_COUNT==''){
     Utilities.sleep(1000);
-    getAllContacts();
-    SpreadsheetApp.getActiveSpreadsheet().toast('All operations have been successful.');
+    //getAllContacts();
+    var lastRow = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getLastRow();
+  
+    if (lastRow >=2) SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).deleteRows(2, lastRow*1-1);
+    
+    SpreadsheetApp.getActiveSpreadsheet().toast('Toutes les opérations ont été traitées avec succès.');
   }
   else{
-    SpreadsheetApp.getActiveSpreadsheet().toast('There were some errors while processing the request.');
+    SpreadsheetApp.getActiveSpreadsheet().toast('Il y a eu des erreurs lors du traitement de la requête.');
     
   }
 }
 
 
-function addContact(firstName,lastName,fullName,primaryEmail,secondaryEmail,primaryPhone,secondaryPhone,city,street,region,postcode,country,rowNumber) {
+function addContact(firstName, lastName, fullName, primaryEmail, orgName, orgTitle, orgLabel, secondaryEmail, primaryPhone, secondaryPhone, city, street, region, postcode, country, rowNumber) {
   
+  if (orgName =='' || orgName == undefined || orgName==null) orgName='--';
+  if (orgTitle =='' || orgTitle == undefined || orgTitle==null) orgTitle='--';
+  if (orgLabel =='' || orgLabel == undefined || orgLabel==null) orgLabel='';
   if (secondaryEmail =='' || secondaryEmail == undefined || secondaryEmail==null) secondaryEmail='--';
   if (primaryPhone =='' || primaryPhone == undefined || primaryPhone==null) primaryPhone='--';
   if (secondaryPhone =='' || secondaryPhone == secondaryPhone || secondaryPhone==null) secondaryPhone='--';
@@ -81,7 +91,12 @@ function addContact(firstName,lastName,fullName,primaryEmail,secondaryEmail,prim
 	"<gd:phoneNumber rel='http://schemas.google.com/g/2005#work'    primary='true'>"+primaryPhone+"</gd:phoneNumber>"+
 	"<gd:phoneNumber rel='http://schemas.google.com/g/2005#home'>"+secondaryPhone+"</gd:phoneNumber>"+
 	"<gd:im address='"+primaryEmail+"'    protocol='http://schemas.google.com/g/2005#GOOGLE_TALK'    primary='true'    rel='http://schemas.google.com/g/2005#home' />"+
-	"<gd:structuredPostalAddress      rel='http://schemas.google.com/g/2005#work'      primary='true'>"+
+    //"<gd:organization label="+orgLabel+">"+
+    "<gd:organization>"+
+      "<gd:orgName>"+orgName+"</gd:orgName>"+
+      "<gd:orgTitle>"+orgTitle+"</gd:orgTitle>"+
+    "</gd:organization>"+
+    "<gd:structuredPostalAddress      rel='http://schemas.google.com/g/2005#work'      primary='true'>"+
 		"<gd:city>"+city+"</gd:city>"+
 		"<gd:street>"+street+"</gd:street>"+
 		"<gd:region>"+region+"</gd:region>"+
@@ -100,19 +115,20 @@ function addContact(firstName,lastName,fullName,primaryEmail,secondaryEmail,prim
   };
   
   var resp = UrlFetchApp.fetch("https://www.google.com/m8/feeds/contacts/"+DOMAIN+"/full", params);
-  
+  Logger.log("https://www.google.com/m8/feeds/contacts/"+DOMAIN+"/full");
   var respCode=resp.getResponseCode();
-  
+  Logger.log("Response code:"+respCode);
+  SpreadsheetApp.getActiveSpreadsheet().toast("Response code:"+respCode);
+
   if (respCode=='201' || respCode=='200') {
-    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 15, 1, 1).setValue('OK');
-    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 14, 1, 1).clear();
+    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 18, 1, 1).setValue('OK');
+    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 17, 1, 1).clear();
   }
   else{
-    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 15, 1, 1).setValue('ERROR');
+    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 18, 1, 1).setValue('ERREUR');
     ERROR_COUNT=ERROR_COUNT.toString()+rowNumber;
   }
 }
-
 
 
 function getAllContacts(){
@@ -120,7 +136,7 @@ function getAllContacts(){
   
   var lastRow = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getLastRow();
   
-  if (lastRow >2) SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).deleteRows(3, lastRow*1-2);
+  if (lastRow >=2) SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).deleteRows(2, lastRow*1-2);
   
   var contacts = ContactsApp.getContacts();
   var params = {
@@ -138,7 +154,7 @@ function getAllContacts(){
   
   data = JSON.parse(resp.getContentText());
   
-  while (data.feed){
+  while (data.feed.entry){
   
   var contact={};
   var contactArray=[];
@@ -159,6 +175,14 @@ function getAllContacts(){
       if (data.feed.entry[i].gd$phoneNumber[0]) {contact.primaryPhone = data.feed.entry[i].gd$phoneNumber[0].$t;} else {contact.primaryPhone=' ';}
       if (data.feed.entry[i].gd$phoneNumber[1]) {contact.secondaryPhone = data.feed.entry[i].gd$phoneNumber[1].$t;} else {contact.secondaryPhone=' ';}
     }
+
+    if (data.feed.entry[i].gd$organization){
+      if (data.feed.entry[i].gd$organization[0].gd$orgName) {contact.orgName = data.feed.entry[i].gd$organization[0].gd$orgName.$t;} else {contact.orgName=' ';}
+      if (data.feed.entry[i].gd$organization[0].gd$orgTitle) {contact.orgTitle = data.feed.entry[i].gd$organization[0].gd$orgTitle.$t;} else {contact.orgTitle=' ';}
+      // Tentative gestion des labels d'organisation
+      //if (data.feed.entry[i].gd$organization.label) {contact.orgLabel = data.feed.entry[i].gd$organization.label;} else {contact.orgLabel=' ';}
+      contact.orgLabel=' ';
+    }
     
     if (data.feed.entry[i].gd$structuredPostalAddress){
       if (data.feed.entry[i].gd$structuredPostalAddress[0].gd$city) {contact.city = data.feed.entry[i].gd$structuredPostalAddress[0].gd$city.$t;} else {contact.city=' ';}
@@ -173,12 +197,14 @@ function getAllContacts(){
     
     }
     
-    
     SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).appendRow([
       contact.firstName,
       contact.lastName,
       contact.fullName,
       contact.primaryEmail,
+      contact.orgName,
+      contact.orgTitle,
+      contact.orgLabel,
       contact.secondaryEmail,
       '="'+contact.primaryPhone+'"',
       '="'+contact.secondaryPhone+'"',
@@ -188,10 +214,7 @@ function getAllContacts(){
       contact.postCode,
       contact.country,
       contact.id
-      ]);
-    
-  
-    
+      ]);    
   }
     startIndex=startIndex*1+25;
     resp = UrlFetchApp.fetch("https://www.google.com/m8/feeds/contacts/"+DOMAIN+"/full?alt=json&start-index="+startIndex, params);
@@ -201,8 +224,12 @@ function getAllContacts(){
   }
 }
 
-function updateContact(firstName,lastName,fullName,primaryEmail,secondaryEmail,primaryPhone,secondaryPhone,city,street,region,postcode,country,contactID,rowNumber) {
+
+function updateContact(firstName, lastName, fullName, primaryEmail, orgName, orgTitle, orgLabel, secondaryEmail, primaryPhone, secondaryPhone, city, street, region, postcode, country, contactID, rowNumber) {
   
+  if (orgName =='' || orgName == undefined || orgName==null) orgName='--';
+  if (orgTitle =='' || orgTitle == undefined || orgTitle==null) orgTitle='--';
+  if (orgLabel =='' || orgLabel == undefined || orgLabel==null) orgLabel='';
   if (secondaryEmail =='' || secondaryEmail == undefined || secondaryEmail==null) secondaryEmail='--';
   if (primaryPhone =='' || primaryPhone == undefined || primaryPhone==null) primaryPhone='--';
   if (secondaryPhone =='' || secondaryPhone == secondaryPhone || secondaryPhone==null) secondaryPhone='--';
@@ -213,19 +240,24 @@ function updateContact(firstName,lastName,fullName,primaryEmail,secondaryEmail,p
   if (country =='' || country == undefined || country==null) country='--';
   
   var buildXML = "<atom:entry xmlns:atom='http://www.w3.org/2005/Atom' xmlns:gd='http://schemas.google.com/g/2005'>"+
-                 "<atom:category scheme='http://schemas.google.com/g/2005#kind'    term='http://schemas.google.com/contact/2008#contact' />"+
-                 "<id>"+contactID+"</id>"+
-	             "<gd:name>"+
-		              "<gd:givenName>"+firstName+"</gd:givenName>"+
-		              "<gd:familyName>"+lastName+"</gd:familyName>"+
-		               "<gd:fullName>"+fullName+"</gd:fullName>"+
-	             "</gd:name>"+
+    "<atom:category scheme='http://schemas.google.com/g/2005#kind'    term='http://schemas.google.com/contact/2008#contact' />"+
+    "<id>"+contactID+"</id>"+
+    "<gd:name>"+
+      "<gd:givenName>"+firstName+"</gd:givenName>"+
+       "<gd:familyName>"+lastName+"</gd:familyName>"+
+       "<gd:fullName>"+fullName+"</gd:fullName>"+
+    "</gd:name>"+
 	"<atom:content type='text'>Notes</atom:content>"+
 	"<gd:email rel='http://schemas.google.com/g/2005#work'    primary='true'    address='"+primaryEmail+"' displayName='"+firstName+" "+lastName+"' />"+
     "<gd:email rel='http://schemas.google.com/g/2005#home'    address='"+secondaryEmail+"' />"+
 	"<gd:phoneNumber rel='http://schemas.google.com/g/2005#work'    primary='true'>"+primaryPhone+"</gd:phoneNumber>"+
 	"<gd:phoneNumber rel='http://schemas.google.com/g/2005#home'>"+secondaryPhone+"</gd:phoneNumber>"+
 	"<gd:im address='"+primaryEmail+"'    protocol='http://schemas.google.com/g/2005#GOOGLE_TALK'    primary='true'    rel='http://schemas.google.com/g/2005#home' />"+
+    //"<gd:organization label="+orgLabel+">"+
+    "<gd:organization>"+
+      "<gd:orgName>"+orgName+"</gd:orgName>"+
+      "<gd:orgTitle>"+orgTitle+"</gd:orgTitle>"+
+    "</gd:organization>"+
 	"<gd:structuredPostalAddress      rel='http://schemas.google.com/g/2005#work'      primary='true'>"+
 		"<gd:city>"+city+"</gd:city>"+
 		"<gd:street>"+street+"</gd:street>"+
@@ -249,19 +281,16 @@ function updateContact(firstName,lastName,fullName,primaryEmail,secondaryEmail,p
   var respCode=resp.getResponseCode();
   
   if (respCode=='201' || respCode=='200') {
-    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 15, 1, 1).setValue('OK');
-    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 14, 1, 1).clear();
-  }
-  else{
-    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 15, 1, 1).setValue('ERROR');
+    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 18, 1, 1).setValue('OK');
+    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 17, 1, 1).clear();
+  } else {
+    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 18, 1, 1).setValue('ERREURR');
     ERROR_COUNT=ERROR_COUNT.toString()+rowNumber;
   }
-  
 }
 
 
-function deleteContact(contactID,rowNumber){
-  
+function deleteContact(contactID, rowNumber) {
   var params = {
     method      : "delete",
     contentType : "application/json",
@@ -274,9 +303,8 @@ function deleteContact(contactID,rowNumber){
   
   if (respCode=='201' || respCode=='200') {
     SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).deleteRow(rowNumber*1);
-  }
-  else{
-    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 15, 1, 1).setValue('ERROR');
+  } else {
+    SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME).getRange(rowNumber*1, 18, 1, 1).setValue('ERREUR');
     ERROR_COUNT=ERROR_COUNT.toString()+rowNumber;
   }
 }
